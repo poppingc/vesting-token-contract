@@ -49,8 +49,8 @@ abstract contract TokenVesting is ERC20, Ownable {
     // 验证 已创建 Vesting
     modifier haveVesting(address _beneficiary) {
         require(
-            _vestingOf[_beneficiary].start > 0,
-            "TokenVesting: Beneficiary no vesting"
+            _vestingOf[_beneficiary].start == 0,
+            "TokenVesting: contract already exists"
         );
         _;
     }
@@ -81,7 +81,7 @@ abstract contract TokenVesting is ERC20, Ownable {
         uint256 _cliff,
         uint256 _releaseCount,
         uint256[] memory _customizeRatio
-    ) external onlyOwner {
+    ) external onlyOwner haveVesting(_beneficiary) {
         require(
             _beneficiary != address(0),
             "TokenVesting: beneficiary is the zero address"
