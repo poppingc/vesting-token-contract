@@ -12,7 +12,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * 创建锁仓(在用户钱包内);
  * 可设置首次金额解锁(按设置比率);
  * 按设置的间隔时间线性解锁锁仓余额;
- * 合约拥有者可设置撤回受益人剩余未解锁的金额;
  *
  */
 abstract contract TokenVesting is ERC20, Ownable {
@@ -342,7 +341,6 @@ abstract contract TokenVesting is ERC20, Ownable {
  * 代币合约
  *
  * [功能]
- * 限制最大发币量;
  * <TokenVesting> 创建锁仓(在用户钱包内);
  *
  */
