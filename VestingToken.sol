@@ -247,6 +247,19 @@ abstract contract TokenVesting is ERC20, Ownable {
     }
 
     /**
+     * @dev 获取 当前账号可用金额
+     * @param _account 受益人地址
+     * @return uint256 token.balance
+     */
+    function availableBalanceOf(address _account)
+        public
+        view
+        returns (uint256)
+    {
+        return balanceOf(_account) - unReleaseAmount(_account);
+    }
+
+    /**
      * @dev 获取 定制解锁比率 应解锁的金额
      * @param _beneficiary 受益人地址
      * @return uint256 token.balance
