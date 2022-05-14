@@ -19,3 +19,4 @@
 - Unrelease Amount 未释放的金额
 - Next Release Time 下一个释放的时间
 - End Release Time 锁仓结束时间
+- Available Balance 查询当前可用余额
