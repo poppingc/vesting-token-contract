@@ -344,7 +344,9 @@ abstract contract TokenVesting is ERC20, Ownable {
  * <TokenVesting> 创建锁仓(在用户钱包内);
  *
  */
-contract Token is TokenVesting {
+contract VestingToken is TokenVesting {
+    uint8 private __decimals;
+
     // 验证 是否为空账号
     modifier nonEmptyAddress(address _addr) {
         require(_addr != address(0), "Token: Empty address");
@@ -361,10 +363,12 @@ contract Token is TokenVesting {
      */
     constructor(
         uint256 _initMint,
+        uint8 _decimals,
         string memory _name,
         string memory _symbol
     ) ERC20(_name, _symbol) {
-        _mint(msg.sender, _initMint);
+        __decimals = _decimals;
+        _mint(msg.sender, _initMint * 10**_decimals);
     }
 
     /**
@@ -453,6 +457,13 @@ contract Token is TokenVesting {
     {
         _spendAllowance(account, _msgSender(), amount);
         _burn(account, amount);
+    }
+
+    /**
+     * @dev 获取小数位
+     */
+    function decimals() public view override returns (uint8) {
+        return __decimals;
     }
 }
 
