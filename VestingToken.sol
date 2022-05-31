@@ -128,7 +128,7 @@ abstract contract TokenVesting is ERC20, Ownable {
      * @dev 解锁：给受益人解锁本次金额
      * @param _beneficiary 受益人地址
      */
-    function release(address _beneficiary) external haveVesting(_beneficiary) {
+    function release(address _beneficiary) external {
         require(
             unReleaseAmount(_beneficiary) > 0,
             "TokenVesting: Vesting is done"
