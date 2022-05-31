@@ -28,8 +28,16 @@ abstract contract TokenVesting is ERC20, Ownable {
 
     modifier haveVesting(address _beneficiary) {
         require(
-            _vestingOf[_beneficiary].start == 0,
+            _vestingOf[_beneficiary].totalLockAmount == 0,
             "TokenVesting: contract already exists"
+        );
+        _;
+    }
+
+    modifier startTimingCheck(address _beneficiary) {
+        require(
+            _vestingOf[_beneficiary].start > 0,
+            "TokenVesting: vesting timing no start"
         );
         _;
     }
@@ -77,7 +85,7 @@ abstract contract TokenVesting is ERC20, Ownable {
             );
         }
         _vestingOf[_beneficiary] = Vesting(
-            block.timestamp,
+            0,
             _cliff,
             _releaseCount,
             0,
@@ -90,20 +98,33 @@ abstract contract TokenVesting is ERC20, Ownable {
     }
 
     /**
+     * @dev start vesting timing
+     * @param _beneficiary beneficiary address
+     */
+    function startTiming(address _beneficiary) external onlyOwner {
+        require(
+            _vestingOf[_beneficiary].start == 0,
+            "TokenVesting: vesting time has begun"
+        );
+        _vestingOf[_beneficiary].start = block.timestamp;
+    }
+
+    /**
      * @dev Unlock this amount for the beneficiary
      * @param _beneficiary beneficiary address
      */
-    function release(address _beneficiary) external {
+    function release(address _beneficiary)
+        external
+        startTimingCheck(_beneficiary)
+    {
         require(
             unReleaseAmount(_beneficiary) > 0,
             "TokenVesting: Vesting is done"
         );
-        // now unlock amount
         uint256 _nowReleased = nowReleaseAllAmount(_beneficiary);
         require(_nowReleased > 0, "TokenVesting: No tokens are due");
         Vesting storage vestingOf_ = _vestingOf[_beneficiary];
         vestingOf_.released += _nowReleased;
-        _spendAllowance(_beneficiary, owner(), _nowReleased);
         emit TokensReleased(_beneficiary, _nowReleased);
     }
 
@@ -130,6 +151,7 @@ abstract contract TokenVesting is ERC20, Ownable {
     function nowReleaseAllAmount(address _beneficiary)
         public
         view
+        startTimingCheck(_beneficiary)
         returns (uint256)
     {
         uint256 _nowAmount = _firstAmount(_beneficiary);
@@ -162,6 +184,7 @@ abstract contract TokenVesting is ERC20, Ownable {
     function nextReleaseTime(address _beneficiary)
         public
         view
+        startTimingCheck(_beneficiary)
         returns (uint256)
     {
         uint256 _firstGetTime = _vestingOf[_beneficiary].start +
@@ -186,6 +209,7 @@ abstract contract TokenVesting is ERC20, Ownable {
     function endReleaseTime(address _beneficiary)
         public
         view
+        startTimingCheck(_beneficiary)
         returns (uint256)
     {
         // 返回: 开始时间 + ( 间隔时间 * 解锁次数 )
