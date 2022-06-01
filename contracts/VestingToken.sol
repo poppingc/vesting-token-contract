@@ -276,7 +276,6 @@ abstract contract TokenVesting is ERC20, Ownable {
 }
 
 contract DMTToken is TokenVesting {
-
     constructor() ERC20("DMT", "DMT") {
         uint256 initMintAmount = 2000000000;
         _mint(msg.sender, initMintAmount * 10**decimals());
