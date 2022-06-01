@@ -21,21 +21,26 @@ abstract contract TokenVesting is ERC20, Ownable {
     modifier availableBalance(address _account, uint256 _amount) {
         require(
             _amount <= balanceOf(_account) - unReleaseAmount(_account),
-            "TokenVesting: Insufficient available balance"
+            "Insufficient available balance"
         );
         _;
     }
 
     modifier haveVesting(address _beneficiary) {
         require(
-            _vestingOf[_beneficiary].start == 0,
-            "TokenVesting: contract already exists"
+            _vestingOf[_beneficiary].totalLockAmount == 0,
+            "contract already exists"
         );
         _;
     }
 
+    modifier startTimingCheck(address _beneficiary) {
+        require(_vestingOf[_beneficiary].start > 0, "vesting timing no start");
+        _;
+    }
+
     event TokensReleased(address token, uint256 amount);
-    event TokenVestingRevoked(address token);
+    event CreateVesting(address beneficiary, uint256 totalLockAmount);
 
     /**
      * @dev Create Vesting
@@ -56,28 +61,22 @@ abstract contract TokenVesting is ERC20, Ownable {
         uint256 _releaseCount,
         uint256[] memory _customizeRatio
     ) external onlyOwner haveVesting(_beneficiary) {
-        require(
-            _beneficiary != address(0),
-            "TokenVesting: beneficiary is the zero address"
-        );
-        require(_releaseCount > 0, "TokenVesting: Release count is 0");
-        require(_firstRatio <= 100, "TokenVesting: No more than one hundred");
+        require(_beneficiary != address(0), "beneficiary is the zero address");
+        require(_releaseCount > 0, "Release count is 0");
+        require(_firstRatio <= 100, "No more than one hundred");
         if (_customizeRatio.length > 0) {
             require(
                 _releaseCount == _customizeRatio.length,
-                "TokenVesting: Unlock times and time do not correspond"
+                "Unlock time need correspond"
             );
             uint256 __total;
             for (uint256 i = 0; i < _customizeRatio.length; i++) {
                 __total += _customizeRatio[i];
             }
-            require(
-                __total + _firstRatio == 100,
-                "TokenVesting: The Ratio total is not 100"
-            );
+            require(__total + _firstRatio == 100, "The Ratio total is not 100");
         }
         _vestingOf[_beneficiary] = Vesting(
-            block.timestamp,
+            0,
             _cliff,
             _releaseCount,
             0,
@@ -86,24 +85,31 @@ abstract contract TokenVesting is ERC20, Ownable {
             _customizeRatio
         );
         transfer(_beneficiary, _totalLockAmount);
-        _approve(_beneficiary, owner(), _totalLockAmount);
+        emit CreateVesting(_beneficiary, _totalLockAmount);
+    }
+
+    /**
+     * @dev start vesting timing
+     * @param _beneficiary beneficiary address
+     */
+    function startTiming(address _beneficiary) external onlyOwner {
+        require(_vestingOf[_beneficiary].start == 0, "vesting time has begun");
+        _vestingOf[_beneficiary].start = block.timestamp;
     }
 
     /**
      * @dev Unlock this amount for the beneficiary
      * @param _beneficiary beneficiary address
      */
-    function release(address _beneficiary) external {
-        require(
-            unReleaseAmount(_beneficiary) > 0,
-            "TokenVesting: Vesting is done"
-        );
-        // now unlock amount
+    function release(address _beneficiary)
+        external
+        startTimingCheck(_beneficiary)
+    {
+        require(unReleaseAmount(_beneficiary) > 0, "Vesting is done");
         uint256 _nowReleased = nowReleaseAllAmount(_beneficiary);
-        require(_nowReleased > 0, "TokenVesting: No tokens are due");
+        require(_nowReleased > 0, "No tokens are due");
         Vesting storage vestingOf_ = _vestingOf[_beneficiary];
         vestingOf_.released += _nowReleased;
-        _spendAllowance(_beneficiary, owner(), _nowReleased);
         emit TokensReleased(_beneficiary, _nowReleased);
     }
 
@@ -130,6 +136,7 @@ abstract contract TokenVesting is ERC20, Ownable {
     function nowReleaseAllAmount(address _beneficiary)
         public
         view
+        startTimingCheck(_beneficiary)
         returns (uint256)
     {
         uint256 _nowAmount = _firstAmount(_beneficiary);
@@ -162,6 +169,7 @@ abstract contract TokenVesting is ERC20, Ownable {
     function nextReleaseTime(address _beneficiary)
         public
         view
+        startTimingCheck(_beneficiary)
         returns (uint256)
     {
         uint256 _firstGetTime = _vestingOf[_beneficiary].start +
@@ -186,6 +194,7 @@ abstract contract TokenVesting is ERC20, Ownable {
     function endReleaseTime(address _beneficiary)
         public
         view
+        startTimingCheck(_beneficiary)
         returns (uint256)
     {
         // 返回: 开始时间 + ( 间隔时间 * 解锁次数 )
@@ -264,59 +273,20 @@ abstract contract TokenVesting is ERC20, Ownable {
             (block.timestamp - _vestingOf[_beneficiary].start) /
             _vestingOf[_beneficiary].cliff;
     }
-
-    /**
-     * @dev Get the next unlock stage
-     * @param _beneficiary beneficiary address
-     * @return uint256 number
-     */
-    function _nextReleaseCount(address _beneficiary)
-        private
-        view
-        returns (uint256)
-    {
-        return
-            (nextReleaseTime(_beneficiary) - _vestingOf[_beneficiary].start) /
-            _vestingOf[_beneficiary].cliff;
-    }
 }
 
-contract VestingToken is TokenVesting {
-    uint8 private immutable __decimals;
+contract DMTToken is TokenVesting {
 
-    modifier nonEmptyAddress(address _addr) {
-        require(_addr != address(0), "Token: Empty address");
-        _;
+    constructor() ERC20("DMT", "DMT") {
+        uint256 initMintAmount = 2000000000;
+        _mint(msg.sender, initMintAmount * 10**decimals());
     }
 
-    /**
-     * @dev constructor
-     *
-     * @param _initMint first mint amount
-     * @param _decimals token decimals
-     * @param _name token name
-     * @param _symbol token symbol
-     *
-     */
-    constructor(
-        uint256 _initMint,
-        uint8 _decimals,
-        string memory _name,
-        string memory _symbol
-    ) ERC20(_name, _symbol) {
-        __decimals = _decimals;
-        _mint(msg.sender, _initMint * 10**_decimals);
-    }
-
-    /**
-     * @dev transfer
-     */
     function transfer(address to, uint256 amount)
         public
         virtual
         override
         availableBalance(_msgSender(), amount)
-        nonEmptyAddress(to)
         returns (bool)
     {
         address owner = _msgSender();
@@ -324,36 +294,22 @@ contract VestingToken is TokenVesting {
         return true;
     }
 
-    /**
-     * @dev transferFrom
-     */
     function transferFrom(
         address from,
         address to,
         uint256 amount
-    )
-        public
-        virtual
-        override
-        availableBalance(from, amount)
-        nonEmptyAddress(to)
-        returns (bool)
-    {
+    ) public virtual override availableBalance(from, amount) returns (bool) {
         address spender = _msgSender();
         _spendAllowance(from, spender, amount);
         _transfer(from, to, amount);
         return true;
     }
 
-    /**
-     * @dev approve
-     */
     function approve(address spender, uint256 amount)
         public
         virtual
         override
         availableBalance(_msgSender(), amount)
-        nonEmptyAddress(spender)
         returns (bool)
     {
         address owner = _msgSender();
@@ -361,9 +317,6 @@ contract VestingToken is TokenVesting {
         return true;
     }
 
-    /**
-     * @dev burn
-     */
     function burn(uint256 amount)
         public
         virtual
@@ -373,9 +326,6 @@ contract VestingToken is TokenVesting {
         _burn(_msgSender(), amount);
     }
 
-    /**
-     * @dev burnFrom
-     */
     function burnFrom(address account, uint256 amount)
         public
         virtual
@@ -384,12 +334,5 @@ contract VestingToken is TokenVesting {
     {
         _spendAllowance(account, _msgSender(), amount);
         _burn(account, amount);
-    }
-
-    /**
-     * @dev get decimals
-     */
-    function decimals() public view override returns (uint8) {
-        return __decimals;
     }
 }
