@@ -5,6 +5,7 @@
 ### Operating 操作
 
 - Create Vesting 创建锁仓
+- Start Timing 开始锁仓计时
 - Burn 销毁代币
 
 ## User Function 用户功能
