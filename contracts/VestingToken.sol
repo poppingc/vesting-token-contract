@@ -39,7 +39,7 @@ abstract contract TokenVesting is ERC20, Ownable {
         _;
     }
 
-    event TokensReleased(address token, uint256 amount);
+    event TokensReleased(address beneficiary, uint256 amount);
     event CreateVesting(address beneficiary, uint256 totalLockAmount);
 
     /**
@@ -62,6 +62,7 @@ abstract contract TokenVesting is ERC20, Ownable {
         uint256[] memory _customizeRatio
     ) external onlyOwner haveVesting(_beneficiary) {
         require(_beneficiary != address(0), "beneficiary is the zero address");
+        require(_totalLockAmount > 0, "Amount count is 0");
         require(_releaseCount > 0, "Release count is 0");
         require(_firstRatio <= 100, "No more than one hundred");
         if (_customizeRatio.length > 0) {
