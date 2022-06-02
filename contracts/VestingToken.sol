@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 abstract contract TokenVesting is ERC20, Ownable {
     struct Vesting {
-        uint256 start;
+        uint256 version;
         uint256 cliff;
         uint256 releaseCount;
         uint256 released;
@@ -17,6 +17,7 @@ abstract contract TokenVesting is ERC20, Ownable {
 
     // vesting data
     mapping(address => Vesting) private _vestingOf;
+    mapping(uint256 => uint256) private _startTimeOf;
 
     modifier availableBalance(address _account, uint256 _amount) {
         require(
@@ -28,19 +29,36 @@ abstract contract TokenVesting is ERC20, Ownable {
 
     modifier haveVesting(address _beneficiary) {
         require(
-            _vestingOf[_beneficiary].totalLockAmount == 0,
+            _vestingOf[_beneficiary].totalLockAmount == 0 &&
+                _vestingOf[_beneficiary].cliff == 0 &&
+                _vestingOf[_beneficiary].releaseCount == 0,
             "contract already exists"
         );
         _;
     }
 
     modifier startTimingCheck(address _beneficiary) {
-        require(_vestingOf[_beneficiary].start > 0, "vesting timing no start");
+        require(
+            _vestingOf[_beneficiary].totalLockAmount > 0,
+            "contract not exists"
+        );
+        require(
+            _getStartTimestamp(_beneficiary) > 0,
+            "vesting timing no start"
+        );
         _;
     }
 
     event TokensReleased(address beneficiary, uint256 amount);
-    event CreateVesting(address beneficiary, uint256 totalLockAmount);
+    event CreateVesting(
+        address beneficiary,
+        uint256 version,
+        uint256 cliff,
+        uint256 releaseCount,
+        uint256 totalLockAmount,
+        uint256 firstRatio,
+        uint256[] customizeRatio
+    );
 
     /**
      * @dev Create Vesting
@@ -56,6 +74,7 @@ abstract contract TokenVesting is ERC20, Ownable {
     function createVesting(
         address _beneficiary,
         uint256 _totalLockAmount,
+        uint256 _version,
         uint256 _firstRatio,
         uint256 _cliff,
         uint256 _releaseCount,
@@ -68,7 +87,7 @@ abstract contract TokenVesting is ERC20, Ownable {
         if (_customizeRatio.length > 0) {
             require(
                 _releaseCount == _customizeRatio.length,
-                "Unlock time need correspond"
+                "The number of unlocks must correspond to the customize ratio array"
             );
             uint256 __total;
             for (uint256 i = 0; i < _customizeRatio.length; i++) {
@@ -77,7 +96,7 @@ abstract contract TokenVesting is ERC20, Ownable {
             require(__total + _firstRatio == 100, "The Ratio total is not 100");
         }
         _vestingOf[_beneficiary] = Vesting(
-            0,
+            _version,
             _cliff,
             _releaseCount,
             0,
@@ -86,16 +105,28 @@ abstract contract TokenVesting is ERC20, Ownable {
             _customizeRatio
         );
         transfer(_beneficiary, _totalLockAmount);
-        emit CreateVesting(_beneficiary, _totalLockAmount);
+        emit CreateVesting(
+            _beneficiary,
+            _version,
+            _cliff,
+            _releaseCount,
+            _totalLockAmount,
+            _firstRatio,
+            _customizeRatio
+        );
     }
 
     /**
      * @dev start vesting timing
-     * @param _beneficiary beneficiary address
+     * @param _version version
      */
-    function startTiming(address _beneficiary) external onlyOwner {
-        require(_vestingOf[_beneficiary].start == 0, "vesting time has begun");
-        _vestingOf[_beneficiary].start = block.timestamp;
+    function startTiming(uint256 _version, uint256 _timestamp)
+        external
+        onlyOwner
+    {
+        require(_timestamp > 0, "timestamp is 0");
+        require(_startTimeOf[_version] == 0, "time has begun");
+        _startTimeOf[_version] = _timestamp;
     }
 
     /**
@@ -143,7 +174,7 @@ abstract contract TokenVesting is ERC20, Ownable {
         uint256 _nowAmount = _firstAmount(_beneficiary);
         if (
             block.timestamp <
-            (_vestingOf[_beneficiary].start + _vestingOf[_beneficiary].cliff)
+            (_getStartTimestamp(_beneficiary) + _vestingOf[_beneficiary].cliff)
         ) {
             return _nowAmount - _vestingOf[_beneficiary].released;
         } else if (block.timestamp >= endReleaseTime(_beneficiary)) {
@@ -173,7 +204,7 @@ abstract contract TokenVesting is ERC20, Ownable {
         startTimingCheck(_beneficiary)
         returns (uint256)
     {
-        uint256 _firstGetTime = _vestingOf[_beneficiary].start +
+        uint256 _firstGetTime = _getStartTimestamp(_beneficiary) +
             _vestingOf[_beneficiary].cliff;
         uint256 _nextTime = ((_nowReleaseCount(_beneficiary)) *
             _vestingOf[_beneficiary].cliff) + _firstGetTime;
@@ -200,7 +231,7 @@ abstract contract TokenVesting is ERC20, Ownable {
     {
         // 返回: 开始时间 + ( 间隔时间 * 解锁次数 )
         return
-            _vestingOf[_beneficiary].start +
+            _getStartTimestamp(_beneficiary) +
             (_vestingOf[_beneficiary].cliff *
                 _vestingOf[_beneficiary].releaseCount);
     }
@@ -271,8 +302,21 @@ abstract contract TokenVesting is ERC20, Ownable {
         returns (uint256)
     {
         return
-            (block.timestamp - _vestingOf[_beneficiary].start) /
+            (block.timestamp - _getStartTimestamp(_beneficiary)) /
             _vestingOf[_beneficiary].cliff;
+    }
+
+    /**
+     * @dev Get the start timestamp
+     * @param _beneficiary beneficiary address
+     * @return uint256 number
+     */
+    function _getStartTimestamp(address _beneficiary)
+        private
+        view
+        returns (uint256)
+    {
+        return _startTimeOf[_vestingOf[_beneficiary].version];
     }
 }
 
