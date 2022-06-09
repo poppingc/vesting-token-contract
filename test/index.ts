@@ -1,3 +1,4 @@
+import { BaseProvider } from "@ethersproject/providers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { BigNumber, Contract } from "ethers";
@@ -40,12 +41,19 @@ describe("Vesting Token", function () {
   // test vesting
   describe("Vesting Check", function () {
     const add1Amount: BigNumber = ethers.utils.parseUnits("100000000", 18);
-    const add1Timestamp = Math.round(Number(new Date()) / 1000);
     const add1TimeVersion = 1;
+    let add1Timestamp: number;
+    // let provider:BaseProvider;
+    beforeEach(async function () {
+      // const provider = ethers.providers.getDefaultProvider();
+      // const blockNumber = await provider.getBlockNumber();
+      // const timestamp = (await provider.getBlock(blockNumber)).timestamp;
+      add1Timestamp = Math.round(Number(new Date()) / 1000) + 1000;
+    })
     describe("Before CreateVesting", function () {
       it("Should fail if no owner", async function () {
         await expect(vestingToken.connect(addr1).createVesting(addr1.address, 0, add1TimeVersion, 10, 100, 3, [])).to.be.revertedWith('Ownable: caller is not the owner');
-        await expect(vestingToken.connect(addr1).startTiming(add1TimeVersion, add1Timestamp)).to.be.revertedWith('Ownable: caller is not the owner');
+        await expect(vestingToken.connect(addr1).setVersionTime(add1TimeVersion, add1Timestamp)).to.be.revertedWith('Ownable: caller is not the owner');
       })
       it("Should fail if Create Vesting error param", async function () {
         await expect(vestingToken.createVesting(addr1.address, 0, add1TimeVersion, 10, 100, 3, [])).to.be.revertedWith('Amount count is 0');
@@ -60,16 +68,16 @@ describe("Vesting Token", function () {
       })
     })
     describe("After CreateVesting", function () {
-      describe("Before StartTiming", function () {
+      describe("Before setVersionTime", function () {
         beforeEach(async function () {
           await vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 10, 100, 3, []);
         })
         describe("Method Operation", function () {
           it("Should fail Create Again of the add1", async function () {
-            await expect(vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 10, 100, 3, [])).to.be.revertedWith('contract already exists');
+            await expect(vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 10, 100, 3, [])).to.be.revertedWith('Vesting already exists');
           })
           it("Should fail First receive amount of the add1", async function () {
-            await expect(vestingToken.release(addr1.address)).to.be.revertedWith('vesting timing no start');
+            await expect(vestingToken.release(addr1.address)).to.be.revertedWith('Vesting timing no start');
           })
         })
         describe("Param Get", function () {
@@ -79,18 +87,18 @@ describe("Vesting Token", function () {
             expect(fromWei(await vestingToken.balanceOf(addr1.address))).to.equal('100000000.0');
           })
           it("Should fail get param of the add1", async function () {
-            await expect(vestingToken.nowReleaseAllAmount(addr1.address)).to.be.revertedWith('vesting timing no start');
-            await expect(vestingToken.nextReleaseTime(addr1.address)).to.be.revertedWith('vesting timing no start');
-            await expect(vestingToken.endReleaseTime(addr1.address)).to.be.revertedWith('vesting timing no start');
+            await expect(vestingToken.nowReleaseAllAmount(addr1.address)).to.be.revertedWith('Vesting timing no start');
+            await expect(vestingToken.nextReleaseTime(addr1.address)).to.be.revertedWith('Vesting timing no start');
+            await expect(vestingToken.endReleaseTime(addr1.address)).to.be.revertedWith('Vesting timing no start');
           })
         })
       })
 
-      describe("After StartTiming", function () {
+      describe("After setVersionTime", function () {
         describe("Not have first ratio", function () {
           beforeEach(async function () {
             await vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 0, 100, 3, []);
-            await vestingToken.startTiming(add1TimeVersion, add1Timestamp);
+            await vestingToken.setVersionTime(add1TimeVersion, add1Timestamp);
           })
           describe("Method Operation", function () {
             it("Should fail if no time release", async function () {
@@ -110,7 +118,7 @@ describe("Vesting Token", function () {
         describe("Have first ratio", function () {
           beforeEach(async function () {
             await vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 10, 100, 3, []);
-            await vestingToken.startTiming(add1TimeVersion, add1Timestamp);
+            await vestingToken.setVersionTime(add1TimeVersion, add1Timestamp);
           })
           describe("Method Operation", function () {
             it("Should track release emit of the add1", async function () {
@@ -131,21 +139,21 @@ describe("Vesting Token", function () {
         describe("No cliff relese", function () {
           beforeEach(async function () {
             await vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 10, 0, 3, []);
-            await vestingToken.startTiming(add1TimeVersion, add1Timestamp);
+            await vestingToken.setVersionTime(add1TimeVersion, add1Timestamp);
           })
           describe("Method Operation", function () {
             it("Should track release emit of the add1", async function () {
-              await expect(vestingToken.connect(addr1).release(addr1.address)).to.emit(vestingToken, "TokensReleased").withArgs(addr1.address, add1Amount);
+              await expect(vestingToken.connect(addr1).release(addr1.address)).to.emit(vestingToken, "TokensReleased").withArgs(addr1.address, BigNumber.from('10000000000000000000000000'));
             })
           })
           describe("Param Get", function () {
             it("Should updata now release all amount of the add1", async function () {
-              expect(fromWei(await vestingToken.nowReleaseAllAmount(addr1.address))).to.equal('100000000.0');
+              expect(fromWei(await vestingToken.nowReleaseAllAmount(addr1.address))).to.equal('10000000.0');
             })
             it("Should updata available balance, when First receive amount of the add1", async function () {
               await vestingToken.connect(addr1).release(addr1.address);
-              expect(fromWei(await vestingToken.availableBalanceOf(addr1.address))).to.equal('100000000.0');
-              expect(fromWei(await vestingToken.unReleaseAmount(addr1.address))).to.equal('0.0');
+              expect(fromWei(await vestingToken.availableBalanceOf(addr1.address))).to.equal('10000000.0');
+              expect(fromWei(await vestingToken.unReleaseAmount(addr1.address))).to.equal('90000000.0');
             })
           })
         })
@@ -153,7 +161,7 @@ describe("Vesting Token", function () {
         describe("Relese All", function () {
           beforeEach(async function () {
             await vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 0, 0, 1, []);
-            await vestingToken.startTiming(add1TimeVersion, add1Timestamp);
+            await vestingToken.setVersionTime(add1TimeVersion, add1Timestamp);
           })
           describe("Before Relese", function () {
             it("Should fail if no relese transfer", async function () {
@@ -170,22 +178,8 @@ describe("Vesting Token", function () {
             })
           })
           describe("After Relese", function () {
-            beforeEach(async function () {
-              await vestingToken.connect(addr1).release(addr1.address);
-            })
-            it("Should success if relese transfer", async function () {
-              await vestingToken.connect(addr1).transfer(deployer.address, add1Amount);
-              expect(fromWei(await vestingToken.balanceOf(addr1.address))).to.equal('0.0');
-            })
-            it("Should success if relese transferFrom", async function () {
-              await vestingToken.connect(addr1).approve(deployer.address, add1Amount);
-              await vestingToken.connect(deployer).transferFrom(addr1.address, deployer.address, add1Amount);
-              expect(fromWei(await vestingToken.balanceOf(addr1.address))).to.equal('0.0');
-            })
-            it("Should success if relese approve", async function () {
-              await vestingToken.connect(addr1).approve(deployer.address, add1Amount);
-              await vestingToken.connect(deployer).burnFrom(addr1.address, add1Amount);
-              expect(fromWei(await vestingToken.balanceOf(addr1.address))).to.equal('0.0');
+            it("Should fail if no time release", async function () {
+              await expect(vestingToken.connect(addr1).release(addr1.address)).to.be.revertedWith('No tokens are due');
             })
           })
         })

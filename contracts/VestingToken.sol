@@ -32,7 +32,7 @@ abstract contract TokenVesting is ERC20, Ownable {
             _vestingOf[_beneficiary].totalLockAmount == 0 &&
                 _vestingOf[_beneficiary].cliff == 0 &&
                 _vestingOf[_beneficiary].releaseCount == 0,
-            "contract already exists"
+            "Vesting already exists"
         );
         _;
     }
@@ -40,11 +40,11 @@ abstract contract TokenVesting is ERC20, Ownable {
     modifier startTimingCheck(address _beneficiary) {
         require(
             _vestingOf[_beneficiary].totalLockAmount > 0,
-            "contract not exists"
+            "Vesting not exists"
         );
         require(
             _getStartTimestamp(_beneficiary) > 0,
-            "vesting timing no start"
+            "Vesting timing no start"
         );
         _;
     }
@@ -80,7 +80,7 @@ abstract contract TokenVesting is ERC20, Ownable {
         uint256 _releaseCount,
         uint256[] memory _customizeRatio
     ) external onlyOwner haveVesting(_beneficiary) {
-        require(_beneficiary != address(0), "beneficiary is the zero address");
+        require(_beneficiary != address(0), "Beneficiary is the zero address");
         require(_totalLockAmount > 0, "Amount count is 0");
         require(_releaseCount > 0, "Release count is 0");
         require(_firstRatio <= 100, "No more than one hundred");
@@ -120,12 +120,15 @@ abstract contract TokenVesting is ERC20, Ownable {
      * @dev start vesting timing
      * @param _version version
      */
-    function startTiming(uint256 _version, uint256 _timestamp)
+    function setVersionTime(uint256 _version, uint256 _timestamp)
         external
         onlyOwner
     {
-        require(_timestamp > 0, "timestamp is 0");
-        require(_startTimeOf[_version] == 0, "time has begun");
+        require(
+            _timestamp >= block.timestamp,
+            "Timestamp cannot be less than current time"
+        );
+        require(_startTimeOf[_version] == 0, "Time has begun");
         _startTimeOf[_version] = _timestamp;
     }
 
@@ -229,7 +232,6 @@ abstract contract TokenVesting is ERC20, Ownable {
         startTimingCheck(_beneficiary)
         returns (uint256)
     {
-        // 返回: 开始时间 + ( 间隔时间 * 解锁次数 )
         return
             _getStartTimestamp(_beneficiary) +
             (_vestingOf[_beneficiary].cliff *
@@ -321,8 +323,8 @@ abstract contract TokenVesting is ERC20, Ownable {
 }
 
 contract DMTToken is TokenVesting {
-    constructor() ERC20("DMT", "DMT") {
-        uint256 initMintAmount = 2000000000;
+    constructor() ERC20("DriveMetaverseToken", "DMT") {
+        uint256 initMintAmount = 3000000000;
         _mint(msg.sender, initMintAmount * 10**decimals());
     }
 
