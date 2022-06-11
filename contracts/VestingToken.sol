@@ -61,6 +61,43 @@ abstract contract TokenVesting is ERC20, Ownable {
     );
 
     /**
+     * @dev batch create vesting
+     */
+    function createBatchVesting(
+        address[] memory _beneficiary,
+        uint256[] memory _totalLockAmount,
+        uint256[] memory _version,
+        uint256[] memory _firstRatio,
+        uint256[] memory _cliff,
+        uint256[] memory _releaseCount,
+        uint256[][] memory _customizeRatio
+    ) external onlyOwner {
+        for (uint256 i = 0; i < _beneficiary.length; i++) {
+            createVesting(
+                _beneficiary[i],
+                _totalLockAmount[i],
+                _version[i],
+                _firstRatio[i],
+                _cliff[i],
+                _releaseCount[i],
+                _customizeRatio[i]
+            );
+        }
+    }
+
+    /**
+     * @dev batch set version time
+     */
+    function setBatchVersionTime(
+        uint256[] memory _version,
+        uint256[] memory _timestamp
+    ) external onlyOwner {
+        for (uint256 i = 0; i < _version.length; i++) {
+            setVersionTime(_version[i], _timestamp[i]);
+        }
+    }
+
+    /**
      * @dev Create Vesting
      *
      * @param _beneficiary beneficiary address
@@ -79,7 +116,7 @@ abstract contract TokenVesting is ERC20, Ownable {
         uint256 _cliff,
         uint256 _releaseCount,
         uint256[] memory _customizeRatio
-    ) external onlyOwner haveVesting(_beneficiary) {
+    ) public onlyOwner haveVesting(_beneficiary) {
         require(_beneficiary != address(0), "Beneficiary is the zero address");
         require(_totalLockAmount > 0, "Amount count is 0");
         require(_releaseCount > 0, "Release count is 0");
@@ -119,9 +156,10 @@ abstract contract TokenVesting is ERC20, Ownable {
     /**
      * @dev start vesting timing
      * @param _version version
+     * @param _timestamp timestamp
      */
     function setVersionTime(uint256 _version, uint256 _timestamp)
-        external
+        public
         onlyOwner
     {
         require(
@@ -323,7 +361,7 @@ abstract contract TokenVesting is ERC20, Ownable {
 }
 
 contract DMTToken is TokenVesting {
-    constructor() ERC20("DriveMetaverseToken", "DMT") {
+    constructor() ERC20("Drive Metaverse Token", "DMT") {
         uint256 initMintAmount = 3000000000;
         _mint(msg.sender, initMintAmount * 10**decimals());
     }
