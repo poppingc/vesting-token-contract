@@ -21,20 +21,20 @@ describe("Vesting Token", function () {
   // test deployment
   describe("Deployment", function () {
     it("Should track name and symbol of the token collection", async function () {
-      expect(await vestingToken.name()).to.equal("DMT");
+      expect(await vestingToken.name()).to.equal("DriveMetaverseToken");
       expect(await vestingToken.symbol()).to.equal("DMT");
       expect(await vestingToken.decimals()).to.equal(18);
     })
     it("Should track initial information of the owner", async function () {
       expect(await vestingToken.owner()).to.equal(deployer.address);
-      expect(fromWei(await vestingToken.balanceOf(deployer.address))).to.equal('2000000000.0');
-      expect(fromWei(await vestingToken.totalSupply())).to.equal('2000000000.0');
+      expect(fromWei(await vestingToken.balanceOf(deployer.address))).to.equal('3000000000.0');
+      expect(fromWei(await vestingToken.totalSupply())).to.equal('3000000000.0');
     })
     it("Should fail burn, If it exceeds the existing amount", async function () {
-      await expect(vestingToken.burn(ethers.utils.parseUnits("20000000001", 18))).to.be.revertedWith('Insufficient available balance');
+      await expect(vestingToken.burn(ethers.utils.parseUnits("30000000001", 18))).to.be.revertedWith('Insufficient available balance');
     })
     it("Should success burn all create amount", async function () {
-      await vestingToken.burn(ethers.utils.parseUnits("2000000000", 18));
+      await vestingToken.burn(ethers.utils.parseUnits("3000000000", 18));
       expect(fromWei(await vestingToken.balanceOf(deployer.address))).to.equal('0.0');
     })
   })
@@ -180,6 +180,46 @@ describe("Vesting Token", function () {
           describe("After Relese", function () {
             it("Should fail if no time release", async function () {
               await expect(vestingToken.connect(addr1).release(addr1.address)).to.be.revertedWith('No tokens are due');
+            })
+          })
+        })
+      })
+
+      describe("Batch Create Vesting", function () {
+        beforeEach(async function () {
+          await vestingToken.createBatchVesting([addr1.address, addr2.address], [add1Amount, add1Amount], [1, 2], [0, 10], [100, 20], [3, 4], [[], []]);
+        })
+        describe("Param Get of add1", function () {
+          it("Should track Create Vesting information of the add1", async function () {
+            expect(await vestingToken.availableBalanceOf(addr1.address)).to.equal(0);
+            expect(fromWei(await vestingToken.unReleaseAmount(addr1.address))).to.equal('100000000.0');
+            expect(fromWei(await vestingToken.balanceOf(addr1.address))).to.equal('100000000.0');
+          })
+          it("Should fail get param of the addr1", async function () {
+            await expect(vestingToken.nowReleaseAllAmount(addr1.address)).to.be.revertedWith('Vesting timing no start');
+            await expect(vestingToken.nextReleaseTime(addr1.address)).to.be.revertedWith('Vesting timing no start');
+            await expect(vestingToken.endReleaseTime(addr1.address)).to.be.revertedWith('Vesting timing no start');
+          })
+        })
+        describe("Param Get of addr2", function () {
+          it("Should track Create Vesting information of the add1", async function () {
+            expect(await vestingToken.availableBalanceOf(addr2.address)).to.equal(0);
+            expect(fromWei(await vestingToken.unReleaseAmount(addr2.address))).to.equal('100000000.0');
+            expect(fromWei(await vestingToken.balanceOf(addr2.address))).to.equal('100000000.0');
+          })
+          it("Should fail get param of the add1", async function () {
+            await expect(vestingToken.nowReleaseAllAmount(addr2.address)).to.be.revertedWith('Vesting timing no start');
+            await expect(vestingToken.nextReleaseTime(addr2.address)).to.be.revertedWith('Vesting timing no start');
+            await expect(vestingToken.endReleaseTime(addr2.address)).to.be.revertedWith('Vesting timing no start');
+          })
+        })
+        describe("Set Time", function () {
+          beforeEach(async function () {
+            await vestingToken.setBatchVersionTime([1, 2], [add1Timestamp, add1Timestamp + 20]);
+          })
+          describe("Method Operation", function () {
+            it("Should track release emit of the add1", async function () {
+              await expect(vestingToken.connect(addr2).release(addr2.address)).to.emit(vestingToken, "TokensReleased").withArgs(addr2.address, BigNumber.from('10000000000000000000000000'));
             })
           })
         })
