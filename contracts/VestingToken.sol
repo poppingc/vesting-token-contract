@@ -102,10 +102,10 @@ abstract contract TokenVesting is ERC20, Ownable {
      *
      * @param _beneficiary beneficiary address
      * @param _totalLockAmount totalLock amount
-     * @param _firstRatio first ratio
+     * @param _firstRatio first ratio (100.00%)
      * @param _cliff cliff
      * @param _releaseCount release count
-     * @param _customizeRatio Customize every unlock rate
+     * @param _customizeRatio Customize every unlock rate (100.00%)
      *
      */
     function createVesting(
@@ -120,7 +120,7 @@ abstract contract TokenVesting is ERC20, Ownable {
         require(_beneficiary != address(0), "Beneficiary is the zero address");
         require(_totalLockAmount > 0, "Amount count is 0");
         require(_releaseCount > 0, "Release count is 0");
-        require(_firstRatio <= 100, "No more than one hundred");
+        require(_firstRatio <= 10000, "No more than one hundred");
         if (_customizeRatio.length > 0) {
             require(
                 _releaseCount == _customizeRatio.length,
@@ -130,7 +130,7 @@ abstract contract TokenVesting is ERC20, Ownable {
             for (uint256 i = 0; i < _customizeRatio.length; i++) {
                 __total += _customizeRatio[i];
             }
-            require(__total + _firstRatio == 100, "The Ratio total is not 100");
+            require(__total + _firstRatio == 10000, "The Ratio total is not 100.00");
         }
         _vestingOf[_beneficiary] = Vesting(
             _version,
@@ -301,7 +301,7 @@ abstract contract TokenVesting is ERC20, Ownable {
     {
         return
             (_vestingOf[_beneficiary].totalLockAmount *
-                _vestingOf[_beneficiary].customizeRatio[_count]) / 100;
+                _vestingOf[_beneficiary].customizeRatio[_count]) / 10000;
     }
 
     /**
@@ -328,7 +328,7 @@ abstract contract TokenVesting is ERC20, Ownable {
     function _firstAmount(address _beneficiary) private view returns (uint256) {
         return
             (_vestingOf[_beneficiary].totalLockAmount *
-                _vestingOf[_beneficiary].firstRatio) / 100;
+                _vestingOf[_beneficiary].firstRatio) / 10000;
     }
 
     /**

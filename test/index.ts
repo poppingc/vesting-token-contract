@@ -52,29 +52,29 @@ describe("Vesting Token", function () {
     })
     describe("Before CreateVesting", function () {
       it("Should fail if no owner", async function () {
-        await expect(vestingToken.connect(addr1).createVesting(addr1.address, 0, add1TimeVersion, 10, 100, 3, [])).to.be.revertedWith('Ownable: caller is not the owner');
+        await expect(vestingToken.connect(addr1).createVesting(addr1.address, 0, add1TimeVersion, 1000, 100, 3, [])).to.be.revertedWith('Ownable: caller is not the owner');
         await expect(vestingToken.connect(addr1).setVersionTime(add1TimeVersion, add1Timestamp)).to.be.revertedWith('Ownable: caller is not the owner');
       })
       it("Should fail if Create Vesting error param", async function () {
-        await expect(vestingToken.createVesting(addr1.address, 0, add1TimeVersion, 10, 100, 3, [])).to.be.revertedWith('Amount count is 0');
-        await expect(vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 10, 100, 0, [])).to.be.revertedWith('Release count is 0');
-        await expect(vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 101, 100, 3, [])).to.be.revertedWith('No more than one hundred');
-        await expect(vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 10, 100, 3, [10, 50, 20, 20])).to.be.revertedWith('The number of unlocks must correspond to the customize ratio array');
-        await expect(vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 10, 100, 3, [10, 50, 40])).to.be.revertedWith('The Ratio total is not 100');
-        await expect(vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 10, 100, 3, [10, 10, 10])).to.be.revertedWith('The Ratio total is not 100');
+        await expect(vestingToken.createVesting(addr1.address, 0, add1TimeVersion, 1000, 100, 3, [])).to.be.revertedWith('Amount count is 0');
+        await expect(vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 1000, 100, 0, [])).to.be.revertedWith('Release count is 0');
+        await expect(vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 10100, 100, 3, [])).to.be.revertedWith('No more than one hundred');
+        await expect(vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 1000, 100, 3, [1000, 5000, 2000, 2000])).to.be.revertedWith('The number of unlocks must correspond to the customize ratio array');
+        await expect(vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 1000, 100, 3, [1000, 5000, 4000])).to.be.revertedWith('The Ratio total is not 100');
+        await expect(vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 1000, 100, 3, [1000, 1000, 1000])).to.be.revertedWith('The Ratio total is not 100');
       })
       it("Should track Create Vesting emit of the add1", async function () {
-        await expect(vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 10, 50, 3, [])).to.emit(vestingToken, "CreateVesting").withArgs(addr1.address, add1TimeVersion, 50, 3, add1Amount, 10, []);
+        await expect(vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 1000, 50, 3, [])).to.emit(vestingToken, "CreateVesting").withArgs(addr1.address, add1TimeVersion, 50, 3, add1Amount, 10, []);
       })
     })
     describe("After CreateVesting", function () {
       describe("Before setVersionTime", function () {
         beforeEach(async function () {
-          await vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 10, 100, 3, []);
+          await vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 1000, 100, 3, []);
         })
         describe("Method Operation", function () {
           it("Should fail Create Again of the add1", async function () {
-            await expect(vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 10, 100, 3, [])).to.be.revertedWith('Vesting already exists');
+            await expect(vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 1000, 100, 3, [])).to.be.revertedWith('Vesting already exists');
           })
           it("Should fail First receive amount of the add1", async function () {
             await expect(vestingToken.release(addr1.address)).to.be.revertedWith('Vesting timing no start');
@@ -117,7 +117,7 @@ describe("Vesting Token", function () {
         })
         describe("Have first ratio", function () {
           beforeEach(async function () {
-            await vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 10, 100, 3, []);
+            await vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 1000, 100, 3, []);
             await vestingToken.setVersionTime(add1TimeVersion, add1Timestamp);
           })
           describe("Method Operation", function () {
@@ -138,7 +138,7 @@ describe("Vesting Token", function () {
         })
         describe("No cliff relese", function () {
           beforeEach(async function () {
-            await vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 10, 0, 3, []);
+            await vestingToken.createVesting(addr1.address, add1Amount, add1TimeVersion, 1000, 0, 3, []);
             await vestingToken.setVersionTime(add1TimeVersion, add1Timestamp);
           })
           describe("Method Operation", function () {
